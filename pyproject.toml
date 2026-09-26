@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jev-jarvis"
+version = "0.1.0"
+description = "A macOS command companion: rehearse, approve, act. Local Laya or optional Jev decisions."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "Raghav Garg"}]
+dependencies = []
+
+[project.optional-dependencies]
+laya = ["laya==0.3.21"]
+voice = ["faster-whisper>=1.2,<2"]
+dev = ["ruff>=0.13,<1"]
+
+[project.scripts]
+jev-jarvis = "jarvis.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["jarvis*"]
+
+[tool.setuptools.package-data]
+jarvis = ["static/*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
