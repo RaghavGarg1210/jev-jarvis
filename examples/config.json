@@ -1,0 +1,18 @@
+{
+  "apps": {
+    "browser": "Safari",
+    "code": "Visual Studio Code"
+  },
+  "contacts": {},
+  "shortcuts": {},
+  "scenes": {
+    "reading": {
+      "title": "Reading hour",
+      "description": "Open a browser and start a half-hour reading timer.",
+      "steps": [
+        {"kind": "open_app", "args": {"app": "browser"}},
+        {"kind": "timer", "args": {"seconds": 1800, "label": "Reading time"}}
+      ]
+    }
+  }
+}
