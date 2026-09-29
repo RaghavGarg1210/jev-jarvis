@@ -56,7 +56,7 @@ class Engine:
     def plan(self, text: str) -> dict:
         raw, decision = self.planner.plan(text)
         actions = self.executor.validate(raw)
-        title = actions[0]["title"] if len(actions) == 1 else f"{len(actions)} steps, one request"
+        title = actions[0]["title"] if len(actions) == 1 else f"{len(actions)} actions"
         plan = {"id": uuid.uuid4().hex, "text": text, "title": title, "actions": actions,
                 "created_at": stamp(), "expires_at": time.time() + 300, **decision}
         with self.lock:

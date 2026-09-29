@@ -2,10 +2,9 @@
 
 # JEV / JARVIS
 
-### Your Mac. A few words. A little superpower.
+### A local command utility for macOS.
 
-A voice-ready command companion for macOS.\
-**Say what you want → rehearse the plan → make it happen.**
+Type or dictate a request, review the actions, and approve them.
 
 [![Tests](https://github.com/RaghavGarg1210/jev-jarvis/actions/workflows/checks.yml/badge.svg)](https://github.com/RaghavGarg1210/jev-jarvis/actions/workflows/checks.yml)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -18,9 +17,9 @@ A voice-ready command companion for macOS.\
 
 ![Jev-Jarvis command workspace, showing a focus routine ready to rehearse](docs/assets/command-center.png)
 
-Most laptop assistants start with a chat box and a promise to do everything. Jarvis starts with **a plan you can inspect**. Apps, notes, messages, timers, and your own Shortcuts become small, explicit capabilities. Local **Laya** or optional hosted **Jev** makes bounded decisions; ordinary code checks and carries out the actions.
+Jarvis turns requests into **a plan you can inspect**. Apps, notes, messages, timers, and your own Shortcuts become small, explicit capabilities. Local **Laya** or optional hosted **Jev** makes bounded decisions; ordinary code checks and carries out the actions.
 
-The fun part is turning little rituals into a single request. “Routine focus” opens Safari and creates a fresh focus note. “Routine reset” lowers the volume and starts a five-minute breather. Make your own for a study sprint, a morning setup, or getting ready to build.
+Save repeated tasks as named routines. “Routine focus” opens Safari and creates a fresh focus note. “Routine reset” lowers the volume and starts a five-minute breather. Make your own for a study sprint, a morning setup, or getting ready to build.
 
 ## Get started
 
@@ -35,7 +34,7 @@ python -m pip install -e .
 jev-jarvis
 ```
 
-Your browser opens at **http://127.0.0.1:8765**. No API key, model download, or frontend build is needed. You can also run `python -m jarvis` directly from the checkout.
+Your browser opens at **http://127.0.0.1:8765**. Use **⌘K** (Ctrl+K on other platforms) to focus the command field, **⌘Enter** to preview, and **Escape** to cancel a preview. No API key, model download, or frontend build is needed. You can also run `python -m jarvis` directly from the checkout.
 
 Start with `open Safari` or choose a routine. **Rehearsal is the default**: the plan and receipt are real, but laptop effects are simulated. To enable actual actions, stop the server and launch:
 
@@ -62,7 +61,7 @@ Every plan still needs an explicit confirmation. Mode is fixed when the server s
 
 The built-in command grammar handles these forms without a model. Optional **Ollama** handles more flexible phrasing and multi-step requests. Unknown apps, missing contacts, unsupported actions, and conflicting model decisions produce a useful error instead of a guess.
 
-### Three things that make it feel different
+### Preview, routines, and history
 
 **Rehearsal before reality.** Try an idea without opening apps or sending anything. A preview shows the exact destination and message, each routine step, and which provider interpreted it. Editing makes a new plan; approvals expire after five minutes and can be used only once.
 
@@ -203,7 +202,7 @@ Tests cover message injection, contact resolution, unknown action rejection, not
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for adding a capability and [the research notes](docs/RESEARCH.md) for the tradeoffs behind the design.
 
-## Next missions
+## Roadmap
 
 - Calendar and reminder adapters with the same exact-effect previews.
 - A menu bar launcher and global push-to-talk shortcut.
@@ -214,4 +213,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for adding a capability and [the research
 
 Built around ideas from [TypeSafe Jev](https://docs.typesafe.ai/), [Laya](https://github.com/NandhaKishorM/laya), [Ollama](https://github.com/ollama/ollama), [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and Apple’s [Shortcuts command line](https://support.apple.com/guide/shortcuts-mac/run-shortcuts-from-the-command-line-apd455c82f02/mac). Jev-Jarvis is an independent project, not affiliated with these projects or vendors.
 
-[MIT licensed](LICENSE). Make your Mac a little more yours.
+[MIT licensed](LICENSE).

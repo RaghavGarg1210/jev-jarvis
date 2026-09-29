@@ -53,7 +53,7 @@
 
   function connection(connected) {
     $('connection-dot').className = `status-dot ${connected ? 'connected' : 'disconnected'}`;
-    $('connection-label').textContent = connected ? 'Connected to your Mac' : 'Connection unavailable';
+    $('connection-label').textContent = connected ? 'Connected' : 'Offline';
   }
 
   function displayValue(value) {
@@ -110,14 +110,14 @@
 
   function updateControls() {
     $('plan-button').disabled = !state.ready || state.planning || state.executing || state.transcribing || state.recording;
-    $('plan-button').querySelector('span').textContent = state.planning ? 'Making your plan…' : 'Make a plan';
+    $('plan-button').querySelector('span').textContent = state.planning ? 'Preparing preview…' : 'Preview';
     $('command-input').disabled = state.executing;
     $('voice-button').disabled = !state.ready || state.planning || state.executing || state.transcribing;
-    $('voice-label').textContent = state.transcribing ? 'Transcribing…' : state.recording ? 'Finish recording' : 'Speak instead';
+    $('voice-label').textContent = state.transcribing ? 'Transcribing' : state.recording ? 'Stop' : 'Dictate';
     $('voice-button').classList.toggle('recording', state.recording);
     $('voice-button').setAttribute('aria-pressed', String(state.recording));
     $('command-form').setAttribute('aria-busy', String(state.planning || state.executing || state.transcribing));
-    document.querySelectorAll('.scene-card').forEach((node) => { node.disabled = !state.ready || state.planning || state.executing || state.transcribing || state.recording; });
+    document.querySelectorAll('.scene-card, .app-shortcut, [data-command]').forEach((node) => { node.disabled = !state.ready || state.planning || state.executing || state.transcribing || state.recording; });
     const approve = $('approve-plan');
     if (approve) approve.disabled = !state.ready || !state.plan || state.planning || state.executing || state.transcribing || state.recording;
   }
@@ -141,33 +141,66 @@
     if (view === 'activity' && state.ready) refreshHistory();
   }
 
+  function chooseCommand(text) {
+    if (!state.ready || state.planning || state.executing || state.transcribing || state.recording) return;
+    location.hash = 'command';
+    setView('command');
+    $('command-input').value = text;
+    state.generation += 1;
+    makePlan();
+  }
+
+  function renderApps(apps) {
+    const root = $('quick-apps');
+    if (!root) return;
+    root.replaceChildren();
+    const known = {
+      safari: ['Safari', 'compass'], browser: ['Browser', 'compass'],
+      notes: ['Notes', 'note'], note: ['Notes', 'note'],
+      calendar: ['Calendar', 'calendar'], messages: ['Messages', 'message'],
+      message: ['Messages', 'message'], imessage: ['Messages', 'message'],
+      reminders: ['Reminders', 'check'], music: ['Music', 'play'],
+      code: ['VS Code', 'code'], vscode: ['VS Code', 'code'],
+      'visual studio code': ['VS Code', 'code'], terminal: ['Terminal', 'terminal'],
+      iterm: ['iTerm', 'terminal'], iterm2: ['iTerm', 'terminal'],
+    };
+    apps.slice(0, 6).forEach((alias) => {
+      const name = String(alias);
+      const key = name.toLowerCase();
+      const [label, symbol] = known[key] || [name.charAt(0).toUpperCase() + name.slice(1), 'app'];
+      const node = el('button', 'app-shortcut');
+      node.type = 'button';
+      node.title = `Preview opening ${label}`;
+      const badge = el('span', `app-icon app-icon-${symbol}`);
+      badge.append(icon(symbol));
+      node.append(badge, el('span', 'app-label', label));
+      node.addEventListener('click', () => chooseCommand(`open ${name}`));
+      root.append(node);
+    });
+    if (!apps.length) root.append(el('p', 'muted', 'No apps configured.'));
+  }
+
   function renderScenes(scenes) {
     $('quick-scenes').replaceChildren();
     $('all-scenes').replaceChildren();
-    const symbols = ['moon', 'spark', 'command', 'clock', 'app'];
+    const symbols = ['clock', 'moon', 'command', 'app', 'note'];
     if (!scenes.length) {
-      $('quick-scenes').append(el('p', 'muted', 'No routines configured yet. Start with a request above.'));
-      $('all-scenes').append(el('p', 'muted', 'Your configured routines will appear here. You can always write your own request in Command.'));
+      $('quick-scenes').append(el('p', 'muted', 'No routines configured.'));
+      $('all-scenes').append(el('p', 'muted', 'Add a routine in your configuration to use it here.'));
       return;
     }
     scenes.forEach((scene, index) => {
       function card(expanded) {
         const node = el('button', 'scene-card');
         node.type = 'button';
-        const top = el('span', 'scene-top');
         const symbol = el('span', 'scene-icon');
         symbol.append(icon(symbols[index % symbols.length]));
-        top.append(symbol, icon('up-right'));
-        node.append(top, el('strong', '', scene.title || 'Untitled routine'), el('p', '', scene.description || 'A ready-to-review request.'));
-        if (expanded) node.append(el('span', 'scene-prompt', scene.prompt || ''));
-        node.addEventListener('click', () => {
-          if (!state.ready || state.planning || state.executing || state.transcribing || state.recording) return;
-          location.hash = 'command';
-          setView('command');
-          $('command-input').value = scene.prompt || '';
-          state.generation += 1;
-          makePlan();
-        });
+        const copy = el('span', 'scene-copy');
+        copy.append(el('strong', '', scene.title || 'Untitled routine'));
+        const description = expanded ? scene.prompt || scene.description : scene.description;
+        if (description) copy.append(el('p', '', description));
+        node.append(symbol, copy, icon('arrow'));
+        node.addEventListener('click', () => chooseCommand(scene.prompt || ''));
         return node;
       }
       if (index < 3) $('quick-scenes').append(card(false));
@@ -194,9 +227,9 @@
       $(target).replaceChildren();
       (Array.isArray(values) && values.length ? values : [empty]).forEach((value) => $(target).append(el('span', 'tag', value)));
     }
-    $('voice-setup-state').textContent = state.voiceEnabled ? 'Local transcription is enabled. Your microphone is off until you press Speak.' : 'Add the speech extra, then start with JARVIS_VOICE=1 jev-jarvis.';
+    $('voice-setup-state').textContent = state.voiceEnabled ? 'Local transcription is enabled. Press Dictate to use your microphone.' : 'Add the speech extra, then start with JARVIS_VOICE=1 jev-jarvis.';
     const capabilities = document.querySelector('#setup-view .quiet-callout p');
-    capabilities.textContent = 'Open approved apps and websites, write a local note, set a timer, search the web, change volume, read text aloud, or send an approved message. Configured Apple Shortcuts add your own workflows. Jev does not run arbitrary shell commands.';
+    capabilities.textContent = 'Open apps and websites, save notes, set timers, adjust volume, speak text, send messages, and run configured Apple Shortcuts.';
     if (Array.isArray(data.shortcuts) && data.shortcuts.length) {
       const row = el('div');
       row.append(el('dt', '', 'Apple Shortcuts'), el('dd', '', data.shortcuts.join(', ')));
@@ -227,18 +260,17 @@
       $('plan-preview').hidden = true;
       $('plan-empty').hidden = false;
       $('execution-result').hidden = true;
-      $('plan-state').textContent = 'Standing by';
+      $('plan-state').textContent = 'Ready';
       $('mode-badge').textContent = state.mode === 'live' ? 'Live mode' : 'Rehearsal mode';
       $('mode-badge').classList.toggle('live', state.mode === 'live');
-      $('planner-label').textContent = `Planner: ${state.planner || 'not available'} · ${state.mode === 'live' ? 'approve to act' : 'safe to explore'}`;
+      $('planner-label').textContent = state.planner === 'ollama' ? 'Local language model' : 'Command mode';
       const flexible = state.planner === 'ollama';
-      $('command-input').placeholder = flexible ? 'Open Safari and set a 25-minute focus timer…' : 'open Safari';
-      $('guide-request-title').textContent = flexible ? 'Ask naturally' : 'Start with a command';
-      $('guide-request-detail').textContent = flexible ? 'One thing or a few things at once.' : 'An app, a note, a timer, or a routine.';
-      document.querySelector('.intro-copy').textContent = flexible ? 'Tell Jev what you have in mind. See the plan. Give the go-ahead. Get on with your day.' : 'Start with a simple command or a saved routine. See the plan. Give the go-ahead. Get on with your day.';
-      $('safety-title').textContent = state.mode === 'live' ? 'Your approval makes it happen.' : 'A safe place to try things.';
-      $('safety-detail').textContent = state.mode === 'live' ? 'Approved plans can change your Mac. Check each step and every message before running.' : 'Rehearsal previews the result without changing your Mac.';
-      $('footer-mode').textContent = `${state.mode === 'live' ? 'LIVE' : 'REHEARSAL'} · LOCAL-FIRST · MACOS`;
+      $('command-input').placeholder = flexible ? 'Open Safari and set a timer for 25 minutes' : 'Try “open Safari”';
+      document.querySelector('.intro-copy').textContent = 'Open an app, create a note, or run a routine.';
+      $('safety-title').textContent = state.mode === 'live' ? 'Approval required' : 'Rehearsal is on';
+      $('safety-detail').textContent = state.mode === 'live' ? 'Review the preview before running an action.' : 'Actions are simulated; your Mac stays unchanged.';
+      $('footer-mode').textContent = `${state.mode === 'live' ? 'Live' : 'Rehearsal'} · macOS`;
+      renderApps(Array.isArray(data.apps) ? data.apps : []);
       renderScenes(Array.isArray(data.scenes) ? data.scenes : []);
       renderSetup(data);
       renderHistory();
@@ -262,7 +294,7 @@
     clearTimeout(state.planTimer);
     $('plan-preview').hidden = true;
     $('plan-empty').hidden = false;
-    $('plan-state').textContent = 'Standing by';
+    $('plan-state').textContent = 'Ready';
     if (!previous) return;
     try { await request('/api/cancel', { id: previous.id }); }
     catch (error) { if (!silent) showError(error.message, 'command-error', error.status === 403); }
@@ -298,8 +330,8 @@
     }
     const token = state.token;
     $('execution-result').hidden = true;
-    $('plan-state').textContent = 'Thinking it through';
-    announce('Making a plan. No actions are running.');
+    $('plan-state').textContent = 'Preparing preview…';
+    announce('Preparing preview. No actions are running.');
     try {
       const plan = await request('/api/plan', { text });
       if (generation !== state.generation || token !== state.token || text !== $('command-input').value.trim()) {
@@ -311,6 +343,11 @@
       if (!plan.id || !Array.isArray(plan.actions) || !plan.actions.length) throw new Error('Jev could not build an actionable plan. Try a specific app, note, timer, or message request.');
       state.plan = plan;
       renderPlan(plan);
+      if (window.innerWidth < 800) {
+        $('plan-preview').tabIndex = -1;
+        $('plan-preview').focus({ preventScroll: true });
+        $('plan-preview').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+      }
       announce(`Plan ready: ${plan.title || 'Your request'}. Review ${plan.actions.length} ${plan.actions.length === 1 ? 'step' : 'steps'} before approving.`);
     } catch (error) {
       if (generation === state.generation || error.status === 403) {
@@ -334,9 +371,9 @@
     root.hidden = false;
     $('plan-empty').hidden = true;
     $('execution-result').hidden = true;
-    $('plan-state').textContent = 'Your call';
-    root.append(el('h2', 'plan-title', plan.title || 'Here’s the plan.'), el('p', 'plan-explanation', plan.explanation || 'Review every step, then approve this exact plan.'));
-    root.append(el('div', 'plan-mode-note', state.mode === 'live' ? 'LIVE · These actions will run on your Mac.' : 'REHEARSAL · This plan will be simulated.'));
+    $('plan-state').textContent = 'Preview ready';
+    root.append(el('h2', 'plan-title', plan.title || 'Preview action'));
+    root.append(el('p', 'plan-mode-note', state.mode === 'live' ? 'Runs on your Mac after approval.' : 'Rehearsal only. Your Mac stays unchanged.'));
     const list = el('ol', 'plan-actions');
     plan.actions.forEach((action, index) => {
       const item = el('li', 'plan-action');
@@ -344,18 +381,17 @@
       heading.append(el('span', 'action-number', String(index + 1).padStart(2, '0')), el('h3', '', action.title || action.kind || 'Action'));
       item.append(heading);
       if (action.detail) item.append(el('p', 'action-detail', action.detail));
-      const args = el('dl', 'action-args');
-      Object.entries(action.args || {}).forEach(([key, value]) => {
-        const pair = el('div');
-        pair.append(el('dt', '', key.replaceAll('_', ' ')), el('dd', '', displayValue(value)));
-        args.append(pair);
-      });
-      if (args.childElementCount) item.append(args);
-      const flags = el('div', 'action-flags');
-      const consequential = ['high', 'external', 'sensitive', 'consequential'].includes(action.risk) || /message|send/.test(action.kind || '');
-      flags.append(el('span', `mini-badge${consequential ? ' warn' : ''}`, action.risk || 'Review'));
-      flags.append(el('span', 'mini-badge', action.reversible ? 'Undo available' : 'No automatic undo'));
-      item.append(flags);
+      if (!action.detail) {
+        const args = el('dl', 'action-args');
+        Object.entries(action.args || {}).forEach(([key, value]) => {
+          const pair = el('div');
+          pair.append(el('dt', '', key.replaceAll('_', ' ')), el('dd', '', displayValue(value)));
+          args.append(pair);
+        });
+        if (args.childElementCount) item.append(args);
+      }
+      if (action.reversible) item.append(el('p', 'action-undo', 'Undo available'));
+      else if (/message|send/.test(action.kind || '')) item.append(el('p', 'action-undo consequential', 'Sent messages cannot be undone.'));
       list.append(item);
     });
     root.append(list);
@@ -366,11 +402,16 @@
     cancel.id = 'cancel-plan';
     controls.append(approve, cancel);
     root.append(controls);
-    const provenance = [plan.provider ? `Routing: ${plan.provider}` : '', plan.model ? `Model: ${plan.model}` : '', 'Edit your request to change this plan.'].filter(Boolean).join(' · ');
-    root.append(el('p', 'plan-small', provenance));
+    const decision = el('details', 'decision-details');
+    decision.append(el('summary', '', 'Decision details'));
+    if (plan.explanation) decision.append(el('p', 'plan-small', plan.explanation));
+    const provenance = [plan.provider ? `Routing: ${plan.provider}` : '', plan.model ? `Model: ${plan.model}` : ''].filter(Boolean).join(' · ');
+    if (provenance) decision.append(el('p', 'plan-small', provenance));
     if (typeof plan.confidence === 'number' && Number.isFinite(plan.confidence)) {
-      root.append(el('p', 'plan-small', `Selected-label probability: ${(plan.confidence * 100).toFixed(1)}%. A model score, not a guarantee of correctness.`));
+      decision.append(el('p', 'plan-small', `Model score: ${(plan.confidence * 100).toFixed(1)}%. This does not verify the action.`));
     }
+    decision.append(el('p', 'plan-small', 'Approval applies to this exact preview. Editing the request cancels it.'));
+    root.append(decision);
     if (plan.expires_at) {
       const remaining = dateValue(plan.expires_at).getTime() - Date.now();
       if (Number.isFinite(remaining)) {
@@ -435,14 +476,15 @@
 
   function receiptNode(receipt, compact = false) {
     const node = el('article', 'receipt');
+    node.dataset.status = receipt.status || 'recorded';
     const heading = el('div', 'receipt-heading');
     const interrupted = ['failed', 'partial', 'interrupted'].includes(receipt.status);
     const symbol = icon(interrupted ? 'close' : receipt.status === 'undone' ? 'undo' : 'check');
     if (interrupted) symbol.classList.add('failed-icon');
     const content = el('div');
-    content.append(el('h3', 'receipt-title', receipt.text || 'A completed plan'));
+    content.append(el('h3', 'receipt-title', receipt.text || 'Completed action'));
     const meta = el('div', 'receipt-meta');
-    const labels = { simulated: 'Rehearsal', done: 'Done', partial: 'Partly completed', failed: 'Failed', undone: 'Undone', interrupted: 'Interrupted', running: 'Running' };
+    const labels = { simulated: 'Rehearsal', done: 'Completed', partial: 'Partly completed', failed: 'Failed', undone: 'Undone', interrupted: 'Interrupted', running: 'Running' };
     meta.append(el('span', `mini-badge${interrupted ? ' warn' : ''}`, labels[receipt.status] || receipt.status || 'Recorded'));
     const date = el('time', 'receipt-date', formatDate(receipt.created_at));
     if (Number.isFinite(dateValue(receipt.created_at).getTime())) date.dateTime = dateValue(receipt.created_at).toISOString();
@@ -463,7 +505,7 @@
     }
     if (!compact && receipt.notice) node.append(el('p', 'receipt-notice', receipt.notice));
     if (!compact && receipt.can_undo) {
-      node.append(button('Undo supported steps', 'ghost undo-button', (event) => undoReceipt(receipt, event.currentTarget), 'undo'));
+      node.append(button('Undo available changes', 'ghost undo-button', (event) => undoReceipt(receipt, event.currentTarget), 'undo'));
     }
     return node;
   }
@@ -474,18 +516,18 @@
     const root = $('execution-result');
     root.replaceChildren();
     root.hidden = false;
-    const titles = { simulated: 'A good dress rehearsal.', done: 'Consider it handled.', partial: 'Some things need a look.', failed: 'That didn’t go to plan.', undone: 'A step back. All good.' };
-    root.append(el('h2', 'result-title', titles[receipt.status] || 'Here’s what happened.'));
-    root.append(el('p', 'result-subtitle', receipt.status === 'simulated' ? 'The plan was simulated. Nothing on your Mac was changed.' : 'Your receipt shows the result of each step.'));
+    const titles = { simulated: 'Rehearsal complete', done: 'Completed', partial: 'Partly completed', failed: 'Action failed', undone: 'Changes undone', interrupted: 'Action interrupted' };
+    root.append(el('h2', 'result-title', titles[receipt.status] || 'Action result'));
+    root.append(el('p', 'result-subtitle', receipt.status === 'simulated' ? 'Your Mac was not changed.' : receipt.status === 'undone' ? 'Available changes were reversed; check each result below.' : 'Results for each action are recorded below.'));
     root.append(receiptNode(receipt));
     root.append(button('Next request', 'secondary', () => {
       root.hidden = true;
       $('plan-empty').hidden = false;
-      $('plan-state').textContent = 'Standing by';
+      $('plan-state').textContent = 'Ready';
       $('command-input').value = '';
       $('command-input').focus();
     }, 'arrow'));
-    $('plan-state').textContent = receipt.status === 'simulated' ? 'Rehearsed' : 'Receipt ready';
+    $('plan-state').textContent = titles[receipt.status] || 'Finished';
   }
 
   async function undoReceipt(receipt, control) {
@@ -517,7 +559,7 @@
   function emptyHistory() {
     const node = el('div', 'empty-history');
     const copy = el('div');
-    copy.append(el('strong', '', 'A clean slate.'), el('p', '', 'Every action gets a receipt. Your first one will live here.'));
+    copy.append(el('strong', '', 'No activity yet. Completed actions will appear here.'));
     node.append(el('span', 'empty-history-mark', '—'), copy);
     return node;
   }
@@ -660,14 +702,14 @@
               await cancelPlan({ silent: true });
               $('command-input').value = result.text;
               state.generation += 1;
-              notice.textContent = 'Transcript added. Review it, then make a plan.';
+              notice.textContent = 'Transcript added. Review it, then preview the action.';
               $('command-input').focus();
             }));
           } else {
             await cancelPlan({ silent: true });
             $('command-input').value = result.text;
             state.generation += 1;
-            notice.textContent = 'Transcript added. Review it, then make a plan.';
+            notice.textContent = 'Transcript added. Review it, then preview the action.';
             $('command-input').focus();
           }
           announce('Transcription is ready to review. No plan has run.');
@@ -683,7 +725,7 @@
       state.recording = true;
       recorder.start();
       state.recordingTimer = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 30000);
-      notice.textContent = 'Listening, for up to 30 seconds. Press Finish recording when you are done.';
+      notice.textContent = 'Listening for up to 30 seconds. Press Stop when you’re done.';
       updateControls();
       announce('Microphone on. Press the microphone button again to finish recording.');
     } catch (error) {
@@ -702,9 +744,18 @@
       announce('Draft changed. Make a fresh plan before approving.');
     }
   });
+  document.querySelectorAll('[data-command]').forEach((node) => {
+    node.addEventListener('click', () => chooseCommand(node.dataset.command || ''));
+  });
   $('refresh-history').addEventListener('click', refreshHistory);
   $('voice-button').addEventListener('click', toggleVoice);
   document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (location.hash !== '#command') history.pushState(null, '', '#command');
+      setView('command');
+      $('command-input').focus();
+    }
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && state.view === 'command') {
       event.preventDefault();
       makePlan();
